@@ -5,7 +5,8 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QVBoxLayout, QWid
 from PyQt5.QtGui import QPixmap
 import tifffile
 import os
-
+import imageio
+from scipy.io import loadmat
 spectral.settings.envi_support_nonlowercase_params = True
 import matplotlib
 matplotlib.use('Qt5Agg')
@@ -65,13 +66,24 @@ class HyperspectralTool(QMainWindow):
         self.selected_channel = index
 
     def load_image(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, "Select Image", "", "Supported Files (*.hdr *.tiff)")
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select Image", "", "Supported Files (*.hdr *.tiff *.mat)")
         if file_path:
             self.image_path = file_path
             self.channel_combo.clear()
 
             # Load hyperspectral image
-            self.data = open_image(file_path)
+            if file_path.endswith('.hdr'):
+                self.data = spectral.open_image(file_path).load()  # Using imageio library for .hdr files
+            elif file_path.endswith('.tiff'):
+                self.data = plt.imread(file_path)  # Using matplotlib for .tiff files
+            elif file_path.endswith('.mat'):
+                mat_data = loadmat(file_path)  # Using scipy.io for .mat files
+                print(mat_data.keys())  # Print the keys to identify the variable name
+                # Use 'reflectances' as the variable name to access hyperspectral data
+                self.data = mat_data['reflectances']
+            else:
+                # Handle unsupported file types or display an error message
+                print("Unsupported file type.")
 
             # Get the number of channels
             num_channels = self.data.shape[-1]
@@ -81,13 +93,14 @@ class HyperspectralTool(QMainWindow):
 
             # Set default channel as the first channel
             self.channel_combo.setCurrentIndex(0)
-            print("image load successfully")
+            print("Image loaded successfully")
+
     def display_channel(self):
         if self.data is None or self.selected_channel is None:
             return
 
         channel_index = self.selected_channel
-        selected_band = self.data.read_band(channel_index)
+        selected_band = self.data[:, :, channel_index]
 
         # Normalize the pixel values to the range [0, 1]
         normalized_band = selected_band.astype(float) / np.max(selected_band)
