@@ -10,4 +10,6 @@ Follow these steps:
 To run flask app:
 1- pull latest origin `git fetch --all`
 2- checkout to flask app `git checkout flask`
-3- run flask app `python3 testflask.py`
+    • run flask app `python3 testflask.py`
+    or
+    • run flask app `python3 finalflask.py`

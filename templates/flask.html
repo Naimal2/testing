@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Hyperspectral Visualization Tool</title>
+</head>
+<body>
+    <h1>Hyperspectral Visualization Tool</h1>
+    <form action="/load_image" method="post" enctype="multipart/form-data">
+        <input type="file" name="file" accept=".hdr,.tiff"><br>
+        <input type="submit" value="Load Hyperspectral Image">
+    </form>
+
+    {% if num_channels %}
+    <h2>Select Channel:</h2>
+    <form action="/display_channel" method="post">
+        <select name="channel">
+            {% for i in range(1, num_channels + 1) %}
+            <option value="{{ i }}">{{ i }}</option>
+            {% endfor %}
+        </select>
+        <input type="submit" value="Display Channel">
+    </form>
+    {% endif %}
+
+    {% if error_message %}
+    <p>{{ error_message }}</p>
+    {% endif %}
+</body>
+</html>
