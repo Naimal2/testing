@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Hyperspectral Visualization Tool</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('#load_form').submit(function(e) {
+                e.preventDefault();
+                var image_path = $('#image_path').val();
+                $.post('/load_image', {image_path: image_path}, function() {
+                    alert('Image loaded successfully!');
+                });
+            });
+
+            $('#channel_form').submit(function(e) {
+                e.preventDefault();
+                var channel_index = $('#channel_index').val();
+                $.post('/select_channel', {channel_index: channel_index}, function() {
+                    alert('Channel selected successfully!');
+                });
+            });
+
+            $('#display_button').click(function(e) {
+                e.preventDefault();
+                $.post('/display_channel', function() {
+                    window.location.href = '/display';
+                });
+            });
+
+            $('#rgb_button').click(function(e) {
+                e.preventDefault();
+                $.post('/convert_to_rgb', function() {
+                    window.location.href = '/rgb';
+                });
+            });
+
+            $('#export_button').click(function(e) {
+                e.preventDefault();
+                $.post('/export_channel', function(export_image_path) {
+                    window.location.href = export_image_path;
+                });
+            });
+
+            $('#roi_button').click(function(e) {
+                e.preventDefault();
+                $.post('/select_roi', function() {
+                    window.location.href = '/spectral_signatures';
+                });
+            });
+        });
+    </script>
+</head>
+<body>
+    <h1>Hyperspectral Visualization Tool</h1>
+    <form id="load_form" action="/load_image" method="POST">
+        <label for="image_path">Load Hyperspectral Image:</label>
+        <input type="text" id="image_path" name="image_path">
+        <input type="submit" value="Load">
+    </form>
+    <form id="channel_form" action="/select_channel" method="POST">
+        <label for="channel_index">Select Channel:</label>
+        <select id="channel_index" name="channel_index">
+            {% for i in range(tool.num_channels) %}
+                <option value="{{ i }}">{{ i }}</option>
+            {% endfor %}
+        </select>
+        <input type="submit" value="Select">
+    </form>
+    <button id="display_button">Display Channel</button>
+    <button id="rgb_button">Convert to RGB</button>
+    <button id="export_button">Export Channel</button>
+    <button id="roi_button">Select ROI</button>
+</body>
+</html> 
