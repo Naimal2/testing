@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Display Image</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        .container {
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+        }
+        .form-container {
+            margin-right: 20px;
+        }
+        .image-container {
+            max-width: 500px;
+        }
+    </style>
+    <script>
+        function displayChannel() {
+            var image_path = document.getElementById("image_path").value;
+            var selected_channel = document.getElementById("selected_channel").value;
+
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "/display_channel", true);
+            xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var imageContainer = document.getElementById("image_container");
+                    imageContainer.innerHTML = '<img src="data:image/png;base64,' + xhr.responseText + '" alt="Displayed Image">';
+                }
+            };
+
+            xhr.send("image_path=" + encodeURIComponent(image_path) + "&selected_channel=" + encodeURIComponent(selected_channel));
+        }
+
+        function showReflectanceGraph() {
+            var image_path = document.getElementById("image_path_spectrum").value;
+            var selected_channel = document.getElementById("selected_channel_spectrum").value;
+
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "/show_reflectance_graph", true);
+            xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var imageContainer = document.getElementById("image_container");
+                    imageContainer.innerHTML = '<img src="data:image/png;base64,' + xhr.responseText + '" alt="Displayed Image">';
+                }
+            };
+
+            xhr.send("image_path=" + encodeURIComponent(image_path) + "&selected_channel=" + encodeURIComponent(selected_channel));
+        }
+    </script>
+</head>
+<body>
+    <h3>Display Image</h3>
+    <div class="container">
+        <div class="form-container">
+            <form action="/load_image" method="post" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="image">Select Image:</label>
+                    <input type="file" class="form-control-file" name="image" accept=".hdr, .tiff, .mat">
+                </div>
+                <button type="submit" class="btn btn-primary">Load Image</button>
+            </form>
+            
+            {% if image_path %}
+                <hr>
+                <h2>Display Channel</h2>
+                <input type="hidden" id="image_path" value="{{ image_path }}">
+                <div class="form-group">
+                    <label for="selected_channel">Select Channel:</label>
+                    <select id="selected_channel" class="form-control">
+                        {% for channel in channel_combo %}
+                            <option value="{{ channel }}">Channel {{ channel }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button onclick="displayChannel()" class="btn btn-primary">Display</button>
+                
+                <hr>
+                <h2>Reflectance Spectrum</h2>
+                <input type="hidden" id="image_path_spectrum" value="{{ image_path }}">
+                <div class="form-group">
+                    <label for="selected_channel_spectrum">Select Channel:</label>
+                    <select id="selected_channel_spectrum" class="form-control">
+                        {% for channel in channel_combo %}
+                            <option value="{{ channel }}">Channel {{ channel }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button onclick="showReflectanceGraph()" class="btn btn-primary">Show Spectrum</button>
+            {% endif %}
+        </div>
+        <div class="image-container" id="image_container">
+            {% if display_image %}
+                <hr>
+                <h2>Displayed Image</h2>
+                <img src="data:image/png;base64,{{ display_image }}" alt="Displayed Image" class="img-fluid">
+            {% endif %}
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>
