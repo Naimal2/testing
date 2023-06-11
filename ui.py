@@ -9,8 +9,13 @@ import numpy as np
 import csv
 from io import BytesIO
 import base64
+from PIL import Image
+from werkzeug.utils import secure_filename
+
 
 app = Flask(__name__)
+app.debug = True
+app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'uploads')
 
 @app.route('/')
 def index():
@@ -142,6 +147,95 @@ def show_reflectance_graph():
 
     # Return the encoded image data to the client
     return encoded_image
+
+@app.route('/load_illuminations', methods=['POST'])
+def upload_illumination():
+    illumination_file = request.files['illumination']
+    if illumination_file:
+        filename = secure_filename(illumination_file.filename)
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        illumination_file.save(file_path)
+        return file_path  # Return the file path
+    return None
+
+
+
+# Apply illuminations
+@app.route('/apply_illuminations', methods=['POST'])
+def apply_illuminations():
+    image_path = request.form['image_path']
+    illuminations_folder = request.form['illuminations_folder']
+
+    if image_path.endswith('.hdr'):
+        data = spectral.open_image(image_path).load()
+    elif image_path.endswith('.tiff'):
+        data = plt.imread(image_path)
+    elif image_path.endswith('.mat'):
+        mat_data = loadmat(image_path)
+        data = mat_data['reflectances']
+    else:
+        return "Unsupported file type."
+
+    illuminations_file = upload_illumination()  # Get the illuminations file path
+    if illuminations_file:
+        # Apply the illuminations using the file path or data
+        data = apply_illuminations(data, illuminations_file)
+
+        # Save the modified data
+        # ...
+
+        return "Illuminations applied successfully."
+    else:
+        return "No illumination file uploaded."
+
+
+# Convert to RGB
+@app.route('/convert_to_rgb', methods=['POST'])
+def convert_to_rgb():
+    image_path = request.form['image_path']
+
+    if image_path.endswith('.hdr'):
+        data = spectral.open_image(image_path).load()
+    elif image_path.endswith('.tiff'):
+        data = plt.imread(image_path)
+    elif image_path.endswith('.mat'):
+        mat_data = loadmat(image_path)
+        data = mat_data['reflectances']
+    else:
+        return "Unsupported file type."
+
+    rgb_data = convert_to_rgb(data)
+
+    # Save the RGB data
+    # ...
+
+    return "Conversion to RGB completed successfully."
+
+# Select ROI (Region of Interest)
+@app.route('/select_roi', methods=['POST'])
+def select_roi():
+    image_path = request.form['image_path']
+    x = int(request.form['x'])
+    y = int(request.form['y'])
+    width = int(request.form['width'])
+    height = int(request.form['height'])
+
+    if image_path.endswith('.hdr'):
+        data = spectral.open_image(image_path).load()
+    elif image_path.endswith('.tiff'):
+        data = plt.imread(image_path)
+    elif image_path.endswith('.mat'):
+        mat_data = loadmat(image_path)
+        data = mat_data['reflectances']
+    else:
+        return "Unsupported file type."
+
+    roi_data = select_roi(data, x, y, width, height)
+
+    # Save the ROI data
+    # ...
+
+    return "ROI selection completed successfully."
 
 if __name__ == '__main__':
     app.run()
