@@ -52,6 +52,87 @@
 
             xhr.send("image_path=" + encodeURIComponent(image_path) + "&selected_channel=" + encodeURIComponent(selected_channel));
         }
+
+        function loadIllumination() {
+            const formData = new FormData();
+            const illuminationFile = document.getElementById("illumination_file").files[0];
+            formData.append("illumination", illuminationFile);
+          
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", "/load_illuminations", true);
+          
+            xhr.onreadystatechange = function () {
+              if (xhr.readyState === 4 && xhr.status === 200) {
+                alert(xhr.responseText);
+              }
+            };
+          
+            xhr.send(formData);
+          }
+          
+          function applyIllumination() {
+            const imagePath = document.getElementById("image_path_illumination").value;
+            const illuminationPath = document.getElementById("selected_illumination").value;
+          
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", "/apply_illuminations", true);
+            xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+          
+            xhr.onreadystatechange = function () {
+              if (xhr.readyState === 4 && xhr.status === 200) {
+                const imageContainer = document.getElementById("image_container");
+                imageContainer.innerHTML =
+                  '<img src="data:image/png;base64,' +
+                  xhr.responseText +
+                  '" alt="Displayed Image">';
+              }
+            };
+          
+            const params =
+              "image_path=" +
+              encodeURIComponent(imagePath) +
+              "&illumination_path=" +
+              encodeURIComponent(illuminationPath);
+            xhr.send(params);
+          }
+          
+
+        function selectROI() {
+            var x = document.getElementById("roi_x").value;
+            var y = document.getElementById("roi_y").value;
+            var width = document.getElementById("roi_width").value;
+            var height = document.getElementById("roi_height").value;
+
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "/select_roi", true);
+            xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var imageContainer = document.getElementById("image_container");
+                    imageContainer.innerHTML = '<img src="data:image/png;base64,' + xhr.responseText + '" alt="Displayed Image">';
+                }
+            };
+
+            xhr.send("x=" + encodeURIComponent(x) + "&y=" + encodeURIComponent(y) + "&width=" + encodeURIComponent(width) + "&height=" + encodeURIComponent(height));
+        }
+
+        function convertToRGB() {
+            var image_path = document.getElementById("image_path_rgb").value;
+
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "/convert_to_rgb", true);
+            xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var imageContainer = document.getElementById("image_container");
+                    imageContainer.innerHTML = '<img src="data:image/png;base64,' + xhr.responseText + '" alt="Displayed Image">';
+                }
+            };
+
+            xhr.send("image_path=" + encodeURIComponent(image_path));
+        }
     </script>
 </head>
 <body>
@@ -92,6 +173,49 @@
                     </select>
                 </div>
                 <button onclick="showReflectanceGraph()" class="btn btn-primary">Show Spectrum</button>
+                
+                <hr>
+                <h2>Load Illumination</h2>
+                <input type="file" class="form-control-file" id="illumination_path" name="illumination_path" accept=".hdr, .tiff, .mat">
+                <button onclick="loadIllumination()" class="btn btn-primary">Load</button>
+                
+                <hr>
+                <h2>Apply Illumination</h2>
+                <input type="hidden" id="image_path_illumination" value="{{ image_path }}">
+                <div class="form-group">
+                    <label for="selected_illumination">Select Illumination:</label>
+                    <select id="selected_illumination" class="form-control">
+                        {% for illumination in illuminations %}
+                            <option value="{{ illumination }}">{{ illumination }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button onclick="applyIllumination()" class="btn btn-primary">Apply</button>
+                
+                <hr>
+                <h2>ROI Selection</h2>
+                <div class="form-group">
+                    <label for="roi_x">X Coordinate:</label>
+                    <input type="text" class="form-control" id="roi_x">
+                </div>
+                <div class="form-group">
+                    <label for="roi_y">Y Coordinate:</label>
+                    <input type="text" class="form-control" id="roi_y">
+                </div>
+                <div class="form-group">
+                    <label for="roi_width">Width:</label>
+                    <input type="text" class="form-control" id="roi_width">
+                </div>
+                <div class="form-group">
+                    <label for="roi_height">Height:</label>
+                    <input type="text" class="form-control" id="roi_height">
+                </div>
+                <button onclick="selectROI()" class="btn btn-primary">Select ROI</button>
+                
+                <hr>
+                <h2>Convert to RGB</h2>
+                <input type="hidden" id="image_path_rgb" value="{{ image_path }}">
+                <button onclick="convertToRGB()" class="btn btn-primary">Convert</button>
             {% endif %}
         </div>
         <div class="image-container" id="image_container">
