@@ -55,47 +55,85 @@
 
         function loadIllumination() {
             const formData = new FormData();
-            const illuminationFile = document.getElementById("illumination_file").files[0];
+            const illuminationFile = document.getElementById("illumination_path").files[0];
             formData.append("illumination", illuminationFile);
-          
+        
             const xhr = new XMLHttpRequest();
-            xhr.open("POST", "/load_illuminations", true);
-          
-            xhr.onreadystatechange = function () {
-              if (xhr.readyState === 4 && xhr.status === 200) {
-                alert(xhr.responseText);
-              }
+            xhr.open("POST", "/load_illumination", true);
+        
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    const response = JSON.parse(xhr.responseText);
+                    alert(response.message);
+        
+                    if (response.illuminations) {
+                        const selectIllumination = document.getElementById("selected_illumination");
+                        selectIllumination.innerHTML = "";  // Clear existing options
+        
+                        for (let i = 0; i < response.illuminations.length; i++) {
+                            const illumination = response.illuminations[i];
+                            const option = document.createElement("option");
+                            option.value = illumination;
+                            option.textContent = illumination;
+                            selectIllumination.appendChild(option);
+                        }
+                    }
+                }
             };
-          
+        
             xhr.send(formData);
-          }
+        }
+        
           
-          function applyIllumination() {
-            const imagePath = document.getElementById("image_path_illumination").value;
-            const illuminationPath = document.getElementById("selected_illumination").value;
-          
-            const xhr = new XMLHttpRequest();
-            xhr.open("POST", "/apply_illuminations", true);
+        function selectIllumination() {
+            console.log("here", formData)
+            var selected_illumination = document.getElementById("selected_illumination").value;
+
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "/select_illumination", true);
             xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-          
-            xhr.onreadystatechange = function () {
-              if (xhr.readyState === 4 && xhr.status === 200) {
-                const imageContainer = document.getElementById("image_container");
-                imageContainer.innerHTML =
-                  '<img src="data:image/png;base64,' +
-                  xhr.responseText +
-                  '" alt="Displayed Image">';
-              }
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var imageContainer = document.getElementById("image_container");
+                    imageContainer.innerHTML = '<img src="data:image/png;base64,' + xhr.responseText + '" alt="Displayed Image">';
+                }
             };
-          
-            const params =
-              "image_path=" +
-              encodeURIComponent(imagePath) +
-              "&illumination_path=" +
-              encodeURIComponent(illuminationPath);
-            xhr.send(params);
-          }
-          
+
+            xhr.send("selected_illumination=" + encodeURIComponent(selected_illumination));
+        }
+
+        function applyIllumination() {
+            console.warn("code here")
+            const selectedIllumination = document.getElementById("selected_illumination").value;
+        
+            // Check if an illumination spectrum is selected
+            if (!selectedIllumination) {
+                alert("Please select an illumination spectrum.");
+                return;
+            }
+        
+            // Send the selected illumination spectrum to the server
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", "/apply_illumination", true);
+            xhr.setRequestHeader("Content-Type", "application/json");
+        
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    const response = xhr.responseText;
+                    alert(response);
+                    
+                    // Display the result in the HTML
+                    const illuminationResult = document.getElementById("illumination_result");
+                    illuminationResult.innerHTML = response;
+                }
+            };
+        
+            const data = JSON.stringify({ selected_illumination: selectedIllumination });
+            xhr.send(data);
+        }
+        
+        
 
         function selectROI() {
             var x = document.getElementById("roi_x").value;
