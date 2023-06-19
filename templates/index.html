@@ -61,22 +61,26 @@
             const xhr = new XMLHttpRequest();
             xhr.open("POST", "/load_illumination", true);
         
-            xhr.onreadystatechange = function() {
-                if (xhr.readyState === 4 && xhr.status === 200) {
-                    const response = JSON.parse(xhr.responseText);
-                    alert(response.message);
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        const response = JSON.parse(xhr.responseText);
+                        alert(response.message);
+                        
         
-                    if (response.illuminations) {
                         const selectIllumination = document.getElementById("selected_illumination");
-                        selectIllumination.innerHTML = "";  // Clear existing options
+                        selectIllumination.innerHTML = "";
         
                         for (let i = 0; i < response.illuminations.length; i++) {
                             const illumination = response.illuminations[i];
+                            const fileName = illumination.split("/").pop();
                             const option = document.createElement("option");
                             option.value = illumination;
-                            option.textContent = illumination;
+                            option.textContent = fileName;
                             selectIllumination.appendChild(option);
                         }
+                    } else {
+                        alert("Error loading illumination spectrum.");
                     }
                 }
             };
@@ -84,56 +88,69 @@
             xhr.send(formData);
         }
         
-          
         function selectIllumination() {
-            console.log("here", formData)
             var selected_illumination = document.getElementById("selected_illumination").value;
-
+          
             var xhr = new XMLHttpRequest();
             xhr.open("POST", "/select_illumination", true);
             xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-
+          
             xhr.onreadystatechange = function() {
-                if (xhr.readyState === 4 && xhr.status === 200) {
-                    var imageContainer = document.getElementById("image_container");
-                    imageContainer.innerHTML = '<img src="data:image/png;base64,' + xhr.responseText + '" alt="Displayed Image">';
+              if (xhr.readyState === 4) {
+                if (xhr.status === 200) {
+                  var imageContainer = document.getElementById("image_container");
+                  var responseData = xhr.responseText;
+                  if (responseData.startsWith("data:image/png;base64,")) {
+                    // Create an image element and set the source to the received data
+                    var img = document.createElement("img");
+                    img.src = responseData;
+                    img.alt = "Displayed Image";
+          
+                    // Clear the container and append the image element
+                    imageContainer.innerHTML = "";
+                    imageContainer.appendChild(img);
+                  } else {
+                    imageContainer.innerHTML = "Error: Failed to load the image.";
+                  }
+                } else {
+                  alert("Error selecting illumination.");
                 }
+              }
             };
-
+          
             xhr.send("selected_illumination=" + encodeURIComponent(selected_illumination));
-        }
-
-        function applyIllumination() {
-            console.warn("code here")
+          }
+          
+          function applyIllumination() {
             const selectedIllumination = document.getElementById("selected_illumination").value;
-        
-            // Check if an illumination spectrum is selected
+          
             if (!selectedIllumination) {
-                alert("Please select an illumination spectrum.");
-                return;
+              alert("Please select an illumination spectrum.");
+              return;
             }
-        
-            // Send the selected illumination spectrum to the server
+          
             const xhr = new XMLHttpRequest();
             xhr.open("POST", "/apply_illumination", true);
             xhr.setRequestHeader("Content-Type", "application/json");
-        
-            xhr.onreadystatechange = function() {
-                if (xhr.readyState === 4 && xhr.status === 200) {
-                    const response = xhr.responseText;
-                    alert(response);
-                    
-                    // Display the result in the HTML
-                    const illuminationResult = document.getElementById("illumination_result");
-                    illuminationResult.innerHTML = response;
+          
+            xhr.onreadystatechange = function () {
+              if (xhr.readyState === 4) {
+                if (xhr.status === 200) {
+                  const response = xhr.responseText;
+                  alert(response);
+          
+                  const illuminationResult = document.getElementById("illumination_result");
+                  illuminationResult.innerHTML = '<img src="data:image/png;base64,' + xhr.responseText + '" alt="Displayed Image">';;
+                } else {
+                  alert("Error applying illumination.");
                 }
+              }
             };
-        
-            const data = JSON.stringify({ selected_illumination: selectedIllumination });
+          
+            const data = JSON.stringify({ selected_illumination });
             xhr.send(data);
-        }
-        
-        
+          }
+          
 
         function selectROI() {
             var x = document.getElementById("roi_x").value;
@@ -217,16 +234,18 @@
                 <input type="file" class="form-control-file" id="illumination_path" name="illumination_path" accept=".hdr, .tiff, .mat">
                 <button onclick="loadIllumination()" class="btn btn-primary">Load</button>
                 
+                
                 <hr>
-                <h2>Apply Illumination</h2>
-                <input type="hidden" id="image_path_illumination" value="{{ image_path }}">
                 <div class="form-group">
                     <label for="selected_illumination">Select Illumination:</label>
-                    <select id="selected_illumination" class="form-control">
+                    <select id="selected_illumination" class="form-control" onchange="selectIllumination(this.selectedIndex)">
+                        <option value="">Select Illumination</option>
                         {% for illumination in illuminations %}
+                            <option value="">Select Illumination</option>
                             <option value="{{ illumination }}">{{ illumination }}</option>
                         {% endfor %}
                     </select>
+                    
                 </div>
                 <button onclick="applyIllumination()" class="btn btn-primary">Apply</button>
                 
@@ -263,6 +282,7 @@
                 <img src="data:image/png;base64,{{ display_image }}" alt="Displayed Image" class="img-fluid">
             {% endif %}
         </div>
+        <div id="illumination_result"></div>
     </div>
 
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>

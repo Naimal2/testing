@@ -1,3 +1,4 @@
+import array
 import json
 import matplotlib.pyplot as plt
 from spectral import *
@@ -28,6 +29,9 @@ def load_image():
     if image_file:
         image_path = os.path.join('uploads', image_file.filename)
         image_file.save(image_path)
+
+        # Load the image data into the IlluminationController
+        illumination_controller.load_image(image_path)
 
         channel_combo = []
         num_channels = 0
@@ -72,13 +76,6 @@ def display_channel():
     plt.axis('off')
     plt.title(f"Channel {selected_channel}")
 
-    # Save the plot as an image file
-    image_buffer = BytesIO()
-    plt.savefig(image_buffer, format='png')
-    image_buffer.seek(0)
-
-    # Return the image file to the client
-    # return send_file(image_buffer, mimetype='image/png')
     # Save the plot as an image file
     image_buffer = BytesIO()
     plt.savefig(image_buffer, format='png')
@@ -146,6 +143,7 @@ class IlluminationController:
     def __init__(self):
         self.illumination_files = []
         self.selected_illumination = None
+        self.data = None  # Add a data attribute
 
     def select_illumination(self, index):
         if index < len(self.illumination_files):
@@ -153,6 +151,17 @@ class IlluminationController:
             print("Illumination spectrum selected:", self.selected_illumination)
         else:
             self.selected_illumination = None
+
+    def load_image(self, image_path):
+        if image_path.endswith('.hdr'):
+            self.data = spectral.open_image(image_path).load()
+        elif image_path.endswith('.tiff'):
+            self.data = plt.imread(image_path)
+        elif image_path.endswith('.mat'):
+            mat_data = loadmat(image_path)
+            self.data = mat_data['reflectances']
+        else:
+            self.data = None
 
     def load_illumination(self):
         file = request.files['illumination']
@@ -173,39 +182,49 @@ class IlluminationController:
             }
             return json.dumps(response), 400, {'Content-Type': 'application/json'}
 
+
     def apply_illumination(self):
-        print("here")
-        if not self.selected_illumination:
-            return "Please select an illumination spectrum."
+            self.data = np.array(self.data) 
 
-        illumination_data = loadmat(self.selected_illumination)
+            if self.selected_illumination is None:
+                return {"error": "No illumination file selected."}, 400
+            
+            if self.data is None:
+                return {"error": "No data returned."}, 400
 
-        for illum_key in illumination_data.keys():
-            if illum_key.startswith('illum'):
-                illumination = np.resize(illumination_data[illum_key], self.data.shape[0])
+            illumination_data = loadmat(self.selected_illumination)
 
-                radiances = np.zeros_like(self.data)
-                for i in range(self.data.shape[-1]):
-                    radiances[:, :, i] = self.data[:, :, i] * illumination[i]
+            for illum_key in illumination_data.keys():
+                if illum_key.startswith('illum'):
+                    illumination = np.resize(illumination_data[illum_key], self.data.shape[0])
 
-                radiance = radiances[141, 75, :]
-                wavelengths = np.arange(400, 730, 10)[:radiance.shape[0]]
+                    radiances = np.zeros_like(self.data)
+                    for i in range(self.data.shape[-1]):
+                        radiances[:, :, i] = self.data[:, :, i] * illumination[i]
 
-                plt.figure()
-                plt.plot(wavelengths, radiance, 'b', label='Applied Illumination')
-                plt.xlabel('wavelength, nm')
-                plt.ylabel('radiance, arbitrary units')
-                plt.title('Reflected Radiance Spectrum')
-                plt.legend()
-                plt.show()
+                    radiance = radiances[141, 75, :]
+                    wavelengths = np.arange(400, 730, 10)[:radiance.shape[0]]
 
-                return "Illumination applied successfully."
+                    plt.figure()
+                    plt.plot(wavelengths, radiance, 'b', label='Applied Illumination')
+                    plt.xlabel('wavelength, nm')
+                    plt.ylabel('radiance, arbitrary units')
+                    plt.title('Reflected Radiance Spectrum')
+                    plt.legend()
+
+                    image_buffer = BytesIO()
+                    plt.savefig(image_buffer, format='png')
+                    image_buffer.seek(0)
+                    encoded_image = base64.b64encode(image_buffer.getvalue()).decode('utf-8')
+
+                    return encoded_image
 
 illumination_controller = IlluminationController()
+response = illumination_controller.apply_illumination()
 
 @app.route('/select_illumination', methods=['POST'])
 def select_illumination():
-    index = int(request.form['index'])
+    index = int(request.form.get('index', -1))
     illumination_controller.select_illumination(index)
     return "Illumination spectrum selected."
 
@@ -218,6 +237,7 @@ def load_illumination():
 def apply_illumination():
     response = illumination_controller.apply_illumination()
     return response
+
 
 
 # Convert to RGB
