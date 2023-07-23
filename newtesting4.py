@@ -140,6 +140,23 @@ class HyperspectralTool(QMainWindow):
         self.result_figure = Figure(figsize=(8, 5))
         self.result_canvas = FigureCanvas(self.result_figure)
 
+        # Result figure and canvas for displaying model results
+        self.result_figure = Figure(figsize=(8, 5))
+        self.result_canvas = FigureCanvas(self.result_figure)
+
+        # Create separate figures and canvases for each bar chart
+        self.accuracy_figure = Figure(figsize=(8, 5))
+        self.accuracy_canvas = FigureCanvas(self.accuracy_figure)
+        self.accuracy_canvas.setVisible(False)
+
+        self.precision_figure = Figure(figsize=(8, 5))
+        self.precision_canvas = FigureCanvas(self.precision_figure)
+        self.precision_canvas.setVisible(False)
+
+        self.recall_figure = Figure(figsize=(8, 5))
+        self.recall_canvas = FigureCanvas(self.recall_figure)
+        self.recall_canvas.setVisible(False)
+        
         # Layout for left pane (toolkits)
         layout = QVBoxLayout()
         layout.addWidget(self.load_button)
@@ -164,10 +181,16 @@ class HyperspectralTool(QMainWindow):
         left_pane_widget = QWidget(self)
         left_pane_widget.setLayout(layout)
 
-        # Layout for right pane (results)
+         # Layout for right pane (results)
         right_pane_layout = QVBoxLayout()
         right_pane_layout.addWidget(self.result_label)
+        # right_pane_layout.addWidget(self.model_results_text_edit)
         right_pane_layout.addWidget(self.result_canvas)
+
+        # Add the accuracy, precision, and recall bar chart canvases to the right pane layout
+        right_pane_layout.addWidget(self.accuracy_canvas)
+        right_pane_layout.addWidget(self.precision_canvas)
+        right_pane_layout.addWidget(self.recall_canvas)
 
         # Create a right pane widget and set its layout
         right_pane_widget = QWidget(self)
@@ -678,27 +701,40 @@ class HyperspectralTool(QMainWindow):
         precisions = [result["precision"] for result in self.model_results.values()]
         recalls = [result["recall"] for result in self.model_results.values()]
 
+        # Clear the previous figures
+        self.accuracy_figure.clear()
+        self.precision_figure.clear()
+        self.recall_figure.clear()
+
+        # Create subplots for each bar chart
+        ax_accuracy = self.accuracy_figure.add_subplot(111)
+        ax_precision = self.precision_figure.add_subplot(111)
+        ax_recall = self.recall_figure.add_subplot(111)
+
         # Plot bar charts for accuracy, precision, and recall
-        fig, ax = plt.subplots(figsize=(10, 6))
-        ax.bar(models, accuracies)
-        ax.set_xlabel("Models")
-        ax.set_ylabel("Accuracy")
-        ax.set_title("Model Comparison - Accuracy")
-        plt.xticks(rotation=45)
+        ax_accuracy.bar(models, accuracies)
+        ax_accuracy.set_xlabel("Models")
+        ax_accuracy.set_ylabel("Accuracy")
+        ax_accuracy.set_title("Model Comparison - Accuracy")
+        ax_accuracy.tick_params(axis='x', rotation=45)
 
-        fig, ax = plt.subplots(figsize=(10, 6))
-        ax.bar(models, precisions)
-        ax.set_xlabel("Models")
-        ax.set_ylabel("Precision")
-        ax.set_title("Model Comparison - Precision")
-        plt.xticks(rotation=45)
+        ax_precision.bar(models, precisions)
+        ax_precision.set_xlabel("Models")
+        ax_precision.set_ylabel("Precision")
+        ax_precision.set_title("Model Comparison - Precision")
+        ax_precision.tick_params(axis='x', rotation=45)
 
-        fig, ax = plt.subplots(figsize=(10, 6))
-        ax.bar(models, recalls)
-        ax.set_xlabel("Models")
-        ax.set_ylabel("Recall")
-        ax.set_title("Model Comparison - Recall")
-        plt.xticks(rotation=45)
+        ax_recall.bar(models, recalls)
+        ax_recall.set_xlabel("Models")
+        ax_recall.set_ylabel("Recall")
+        ax_recall.set_title("Model Comparison - Recall")
+        ax_recall.tick_params(axis='x', rotation=45)
+
+        # Update the canvases to show the new figures
+        self.accuracy_canvas.setVisible(True)
+        self.precision_canvas.setVisible(True)
+        self.recall_canvas.setVisible(True)
+
 
         plt.show()
 app = QApplication([])
