@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 from spectral import *
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QVBoxLayout, QWidget, QComboBox, QPushButton, \
-    QFileDialog, QHBoxLayout
+    QFileDialog, QHBoxLayout, QSplitter
 from PyQt5.QtGui import QPixmap
 import tifffile
 import os
@@ -28,6 +28,9 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from matplotlib.widgets import Cursor
 from sklearn.preprocessing import LabelEncoder
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from sklearn.model_selection import train_test_split
 
 label_encoder = LabelEncoder()
 
@@ -73,7 +76,6 @@ class HyperspectralTool(QMainWindow):
         self.applied_illumination = None
         self.X_train, self.X_test, self.y_train, self.y_test = None, None, None, None
 
-
         # Load button
         self.load_button = QPushButton("Load Hyperspectral Image", self)
         self.load_button.clicked.connect(self.load_image)
@@ -107,12 +109,14 @@ class HyperspectralTool(QMainWindow):
         # RGB conversion button
         self.rgb_conversion_button = QPushButton("Convert to RGB", self)
         self.rgb_conversion_button.clicked.connect(self.convert_to_rgb)
+
         # Select ROI button
         self.select_roi_button = QPushButton("Select ROI", self)
         self.select_roi_button.clicked.connect(self.select_roi)
+
         # Load dataset button
         self.load_dataset_button = QPushButton("Load Dataset", self)
-        self.load_dataset_button.clicked.connect(self.load_dataset_from_csv)
+        self.load_dataset_button.clicked.connect(self.load_dataset_dialog)
 
         # Apply model button
         self.apply_model_button = QPushButton("Apply Model", self)
@@ -121,10 +125,19 @@ class HyperspectralTool(QMainWindow):
         # Dropdown list for model selection
         self.model_selection_label = QLabel("Select Model:")
         self.model_selection_combo = QComboBox(self)
-        self.model_selection_combo.addItems(["SVM", "ANN", "KNN", "Random Forest", "Decision Tree", "PCA + SVM"])
-        self.load_dataset_button.clicked.connect(self.load_dataset_dialog)
+        self.model_selection_combo.addItems(
+            ["SVM", "ANN", "KNN", "Random Forest", "Decision Tree", "PCA + SVM"]
+        )
 
-        # Layout
+        # Results label
+        self.result_label = QLabel(self)
+        self.result_label.setText("Results will be displayed here.")
+
+        # Result figure and canvas
+        self.result_figure = Figure(figsize=(8, 5))
+        self.result_canvas = FigureCanvas(self.result_figure)
+
+        # Layout for left pane (toolkits)
         layout = QVBoxLayout()
         layout.addWidget(self.load_button)
         layout.addWidget(self.channel_label)
@@ -141,11 +154,30 @@ class HyperspectralTool(QMainWindow):
         layout.addWidget(self.model_selection_label)
         layout.addWidget(self.model_selection_combo)
         layout.addWidget(self.apply_model_button)
-        central_widget = QWidget(self)
-        central_widget.setLayout(layout)
-        self.setCentralWidget(central_widget)
+        layout.addStretch()  # Add stretch to push widgets to the top
+
+        # Create a left pane widget and set its layout
+        left_pane_widget = QWidget(self)
+        left_pane_widget.setLayout(layout)
+
+        # Layout for right pane (results)
+        right_pane_layout = QVBoxLayout()
+        right_pane_layout.addWidget(self.result_label)
+        right_pane_layout.addWidget(self.result_canvas)
+
+        # Create a right pane widget and set its layout
+        right_pane_widget = QWidget(self)
+        right_pane_widget.setLayout(right_pane_layout)
+
+        # Create a QSplitter to divide the main window into two sections (left and right)
+        splitter = QSplitter(self)
+        splitter.addWidget(left_pane_widget)
+        splitter.addWidget(right_pane_widget)
+
+        self.setCentralWidget(splitter)
 
         self.illumination_files = []
+        
     def select_channel(self, index):
         self.selected_channel = index
 
@@ -194,10 +226,20 @@ class HyperspectralTool(QMainWindow):
         # Normalize the pixel values to the range [0, 1]
         normalized_band = selected_band.astype(float) / np.max(selected_band)
 
-        plt.imshow(normalized_band, cmap='gray')
-        plt.axis('off')
-        plt.title(f"Channel {channel_index + 1}")
-        plt.show()
+        # Clear the previous figure
+        self.result_figure.clear()
+
+        # Add a subplot to the figure
+        ax = self.result_figure.add_subplot(111)
+
+        # Display the image in the right pane
+        ax.imshow(normalized_band, cmap='gray')
+        ax.axis('off')
+        ax.set_title(f"Channel {channel_index + 1}")
+
+        # Update the canvas to show the new figure
+        self.result_canvas.draw()
+
 
     def get_wavelength(self):
         if self.image_path.endswith('.mat'):
@@ -239,26 +281,31 @@ class HyperspectralTool(QMainWindow):
             reflectance = reflectance[:len(wavelengths)]
             normalized_reflectance = normalized_reflectance[:len(wavelengths)]
 
+        # Clear the previous figure
+        self.result_figure.clear()
+
+        # Add subplots to the figure
+        ax1 = self.result_figure.add_subplot(121)
+        ax2 = self.result_figure.add_subplot(122)
+
         # Plot the unnormalized reflectance graph
-        plt.figure(figsize=(10, 5))
-        plt.subplot(121)
-        plt.plot(wavelengths, reflectance)
-        plt.xlabel('wavelength, nm')
-        plt.ylabel('unnormalized reflectance')
-        plt.title('Unnormalized Reflectance')
+        ax1.plot(wavelengths, reflectance)
+        ax1.set_xlabel('wavelength, nm')
+        ax1.set_ylabel('unnormalized reflectance')
+        ax1.set_title('Unnormalized Reflectance')
 
         # Plot the normalized reflectance graph
-        plt.subplot(122)
-        plt.plot(wavelengths, normalized_reflectance)
-        plt.xlabel('wavelength, nm')
-        plt.ylabel('normalized reflectance')
-        plt.title('Normalized Reflectance')
+        ax2.plot(wavelengths, normalized_reflectance)
+        ax2.set_xlabel('wavelength, nm')
+        ax2.set_ylabel('normalized reflectance')
+        ax2.set_title('Normalized Reflectance')
 
         # Adjust the layout to prevent overlap
-        plt.tight_layout()
+        self.result_figure.tight_layout()
 
-        # Display the graphs
-        plt.show()
+        # Update the canvas to show the new figure
+        self.result_canvas.draw()
+
         # Generate CSV file
         filename = "reflectance_data.csv"
         data = zip(wavelengths, reflectance, normalized_reflectance)
@@ -270,6 +317,7 @@ class HyperspectralTool(QMainWindow):
             writer.writerows(data)
 
         print("CSV file generated:", filename)
+
 
 
     def select_illumination(self, index):
@@ -306,15 +354,24 @@ class HyperspectralTool(QMainWindow):
                 radiance = radiances[141, 75, :]
                 wavelengths = np.arange(400, 730, 10)[:radiance.shape[0]]
 
-                plt.figure()
-                plt.plot(wavelengths, radiance, 'b', label='Applied Illumination')
-                plt.xlabel('wavelength, nm')
-                plt.ylabel('radiance, arbitrary units')
-                plt.title('Reflected Radiance Spectrum')
-                plt.legend()
-                plt.show()
+                # Clear the previous figure
+                self.result_figure.clear()
+
+                # Add a subplot to the figure
+                ax = self.result_figure.add_subplot(111)
+
+                # Plot the Reflected Radiance Spectrum graph
+                ax.plot(wavelengths, radiance, 'b', label='Applied Illumination')
+                ax.set_xlabel('wavelength, nm')
+                ax.set_ylabel('radiance, arbitrary units')
+                ax.set_title('Reflected Radiance Spectrum')
+                ax.legend()
+
+                # Update the canvas to show the new figure
+                self.result_canvas.draw()
 
                 self.applied_illumination = illumination  # Store the applied illumination
+
 
     def convert_to_rgb(self):
         if self.data is None:
@@ -350,15 +407,13 @@ class HyperspectralTool(QMainWindow):
                 XYZ = XYZ.reshape(r, c, 3)
 
                 # Normalize XYZ values
-                XYZ = np.maximum(XYZ, 0)
                 XYZ = XYZ / np.max(XYZ)
 
                 # Convert XYZ to sRGB
                 RGB = XYZ2sRGB_exgamma(XYZ)
 
                 # Clip RGB values
-                RGB = np.maximum(RGB, 0)
-                RGB = np.minimum(RGB, 1)
+                RGB = np.clip(RGB, 0, 1)
 
                 # Perform R, G, and B operations
                 R = RGB[:, :, 0] * 0.5
@@ -370,9 +425,15 @@ class HyperspectralTool(QMainWindow):
                 G = G / np.max(G)
                 B = B / np.max(B)
 
-                # Display R, G, and B channels separately
-                fig, (ax_r, ax_g, ax_b) = plt.subplots(1, 3, figsize=(12, 4))
+                # Clear the previous figure
+                self.result_figure.clear()
 
+                # Add subplots to the figure
+                ax_r = self.result_figure.add_subplot(131)
+                ax_g = self.result_figure.add_subplot(132)
+                ax_b = self.result_figure.add_subplot(133)
+
+                # Display R, G, and B channels
                 ax_r.imshow(R, cmap='gray', aspect='auto', origin='lower')
                 ax_r.set_title('R Channel')
                 ax_r.axis('off')
@@ -385,14 +446,20 @@ class HyperspectralTool(QMainWindow):
                 ax_b.set_title('B Channel')
                 ax_b.axis('off')
 
+                # Update the canvas to show the new figure
+                self.result_canvas.draw()
+
                 # Display the RGB image
                 fig_rgb, ax_rgb = plt.subplots(figsize=(6, 6))
                 ax_rgb.imshow(RGB)
                 ax_rgb.set_title('RGB Image')
                 ax_rgb.axis('off')
 
-                plt.tight_layout()
+                # Show the RGB image in a separate window (optional)
                 plt.show()
+
+                self.applied_illumination = illumination  # Store the applied illumination
+
 
     def select_roi(self):
         if self.data is None or self.selected_channel is None:
@@ -439,32 +506,50 @@ class HyperspectralTool(QMainWindow):
 
             # Store the ROI data
             self.roi_data = roi_data
+            self.roi_coordinates = (x1, y1, x2, y2)
+
+            # Compute the spectral signature
+            spectral_signature = np.mean(roi_data, axis=0)
+
+            # Define the wavelengths based on the length of spectral_signature
+            wavelengths = np.linspace(x1, x2, len(spectral_signature))
+
+            # Store the spectral signature
+            self.roi_spectral_signature = (wavelengths, spectral_signature)
+
+            # Clear the previous figure
+            self.result_figure.clear()
+
+            # Add subplots to the figure
+            ax_roi = self.result_figure.add_subplot(121)
+            ax_signature = self.result_figure.add_subplot(122)
 
             # Display the ROI
-            fig, ax = plt.subplots()
-            ax.imshow(roi_data, cmap='gray', extent=[x1, x2, y2, y1])  # Swap y1 and y2 for correct orientation
-            ax.axis('off')
-            ax.set_title(f"ROI for Channel {channel_index + 1}")
+            ax_roi.imshow(selected_band, cmap='gray')
+            rect = Rectangle((x1, y1), x2 - x1, y2 - y1, edgecolor='r', facecolor='none')
+            ax_roi.add_patch(rect)
+            ax_roi.axis('off')
+            ax_roi.set_title(f"ROI for Channel {channel_index + 1}")
+
+            # Display the spectral signature
+            wavelengths, spectral_signature = self.roi_spectral_signature
+            ax_signature.plot(wavelengths, spectral_signature)
+            ax_signature.set_xlabel("Wavelength (nm)")
+            ax_signature.set_ylabel("Reflectance")
+            ax_signature.set_title("Spectral Signature")
+
+            # Adjust the layout to prevent overlap
+            self.result_figure.tight_layout()
+
+            # Update the canvas to show the new figure
+            self.result_canvas.draw()
 
             plt.show()
-
-            if roi_data.size > 0:
-                # Compute the spectral signature
-                spectral_signature = np.mean(roi_data, axis=0)
-
-                # Define the wavelengths based on the length of spectral_signature
-                wavelengths = np.linspace(x1, x2, len(spectral_signature))
-
-                # Plot the spectral signature with wavelengths
-                plt.figure()
-                plt.plot(wavelengths, spectral_signature)
-                plt.xlabel("Wavelength (nm)")
-                plt.ylabel("Reflectance")
-                plt.title("Spectral Signature")
-                plt.show()
         else:
             # Clear the ROI data if ROI selection was canceled
             self.roi_data = None
+            self.roi_coordinates = None
+            self.roi_spectral_signature = None
 
     def load_dataset_dialog(self):
         file_dialog = QFileDialog()

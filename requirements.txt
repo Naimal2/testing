@@ -2,3 +2,6 @@ numpy
 matplotlib
 spectral
 PyQt5
+pandas
+tensorflow
+scikit-learn
